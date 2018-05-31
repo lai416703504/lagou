@@ -1,61 +1,239 @@
 # -*- coding: utf-8 -*-
-import re
+
+# 内置库
 import json
-from scrapy.selector import Selector
-from scrapy.spider import Spider
-from scrapy.contrib.spiders import CrawlSpider,Rule
-from scrapy.contrib.linkextractors.sgml import SgmlLinkExtractor as sle
+from collections import OrderedDict
+
+# 第三方库
+import scrapy
+from scrapy.conf import settings
+from scrapy.exceptions import CloseSpider
+
+# 项目内部的库
+from lagou.utils.login import *
+from lagou.utils.util import *
+from lagou.logger.LoggerHandler import Logger
+from lagou.utils.cookies import *
 from lagou.items import LagouItem
-from scrapy import log
-from scrapy.http import Request
 
 
-class LagouSpider(CrawlSpider):
+# 日志中心
+# logger = Logger(logger='lagouSpider.py').get_logger()
+
+
+class LagouSpider(scrapy.Spider):
     name = "lagou"
-    download_delay = 2
-    allowed_domains = ["lagou.com"]
-    start_urls = [
-        "http://www.lagou.com/jobs/list_Python?kd=Python&spc=1&pl=&gj=&xl=&yx=&gx=&st=&labelWords=&lc=&workAddress=&city=%E4%B8%8A%E6%B5%B7&requestId=&pn=1"
-    ]
-    #rules = [
-    #    Rule(sle(allow=("l/jobs/list_Python?kd=Python&spc=1&pl=&gj=&xl=&yx=&gx=&st=&labelWords=&lc=&workAddress=&city=%E4%B8%8A%E6%B5%B7&requestId=&pn=\d{1}")),follow=True,callback='parse_item')
-    #    Rule(sle(),follow=True,callback='parse_item')
-    #
-    #]
-    def parse(self,response):
-        log.msg("Fetch page: %s"%response.url)
-        #items = []
-        sel = Selector(response)
-        sites = sel.xpath('//div[@class="content"]/ul[@class="hot_pos reset"]/li')
-        total_page_value = sel.xpath('//div[@class="Pagination myself"]/a[@href="#"][last()]/@title').extract()
-        log.msg("total_page_value: %s"%total_page_value)
-        total_page = int(total_page_value[0])
-        log.msg("page_number: %s"%total_page)
-        for site in sites:
-            item = LagouPythonItem()
-            item['salary'] =site.xpath('div[@class="hot_pos_l"]/span[1]/text()').extract()
-            item['experience'] =site.xpath('div[@class="hot_pos_l"]/span[2]/text()').extract()
-            item['education'] =site.xpath('div[@class="hot_pos_l"]/span[3]/text()').extract()
-            item['occupation_temptation'] =site.xpath('div[@class="hot_pos_l"]/span[4]/text()').extract()
-            if len(site.xpath('div[@class="hot_pos_r"]/span')) ==3:
-                item['job_fields'] = site.xpath('div[@class="hot_pos_r"]/span[1]/text()').extract()
-                item['stage'] = site.xpath('div[@class="hot_pos_r"]/span[2]/text()').extract()
-                item['scale'] = site.xpath('div[@class="hot_pos_r"]/span[3]/text()').extract()
-                item['company'] =site.xpath('div[@class="hot_pos_r"]/div[@class="mb10"]/a/text()').extract()
-                item['url'] = site.xpath('div[@class="hot_pos_r"]/div[@class="mb10"]/a/@href').extract()
-                item['founder']=[]
-            else:
-                item['job_fields'] = site.xpath('div[@class="hot_pos_r"]/span[1]/text()').extract()
-                item['founder'] = site.xpath('div[@class="hot_pos_r"]/span[2]/text()').extract()
-                item['stage'] = site.xpath('div[@class="hot_pos_r"]/span[3]/text()').extract()
-                item['scale'] = site.xpath('div[@class="hot_pos_r"]/span[4]/text()').extract()
-                item['company'] =site.xpath('div[@class="hot_pos_r"]/div[@class="mb10"]/a/text()').extract()
-                item['url'] = site.xpath('div[@class="hot_pos_r"]/div[@class="mb10"]/a/@href').extract()
-            yield item
-        next_urls=[]
-        for k in xrange(2,10):
-            base_url = "http://www.lagou.com/jobs/list_Python?kd=Python&spc=1&pl=&gj=&xl=&yx=&gx=&st=&labelWords=&lc=&workAddress=&city=%E4%B8%8A%E6%B5%B7&requestId=&pn="+str(k)
-            next_urls.append(base_url)
-        for next_url in next_urls:
-            #log.msg("Next page:%s"%next_url, level=log.INFO)
-            yield Request(next_url,callback=self.parse)
+
+    # 请求头信息
+    HEADERS = {
+        'Referer': 'https://passport.lagou.com/login/login.html?ts=1527748655696&serviceId=lagou&service=https%253A%252F%252Fwww.lagou.com%252F&action=login&signature=520506B19276E8AF83F8A8CE17467423',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36'
+    }
+
+    def __init__(self, search_name, *args, **kwargs):
+        # 拉勾登录账号密码
+        self._username = settings['USERNAME']
+        self._password = settings['PASSWORD']
+
+        # login_cookies
+        self.login_cookies = None
+
+        # 爬取字段 set到referer_name中
+        self._search_name = search_name
+        settings.set("REFERER_NAME", self._search_name)
+
+        # 页数设个起始值
+        self.page_no = settings['START_PAGE_NUM']
+
+        # 请求json的url
+        self._url = 'https://www.lagou.com/jobs/positionAjax.json?px=new&kd={}&pn={}&'
+
+        super(LagouSpider, self).__init__(*args)
+
+    def start_requests(self):
+        # 登录
+        # login(user=self._username, pass_wd=self._password)
+        self.login_cookies = get_cookies()
+        # logger.info(self.login_cookies)
+
+        url = self._url.format(self._search_name, self.page_no)
+
+        yield scrapy.Request(
+            url=url,
+            method="GET",
+            callback=self.parse,
+            headers=HEADERS
+        )
+
+    def parse(self, response):
+        json_data = response.text
+        # logger.debug(json_data)
+        if '<html>' not in json_data:
+            data = json.loads(json_data, object_pairs_hook=OrderedDict)
+            # logger.debug(data)
+            if data['success'] is True:
+                # Json里面的页码
+                self.page_no = data['content']['pageNo']
+                while self.page_no != 0:
+                    # 解析
+                    result = data['content']['positionResult']['result']
+                    for item in result:
+                        lagou_data = LagouItem()
+                        # try:
+
+                        # MongoDB ID 虽然我这里没用MongoDB
+                        lagou_data['_id'] = string_to_md5(string=str(item['companyId']) + str(item['positionId']))
+                        lagou_data['from_website'] = "拉勾"
+
+                        # 薪资（最高最低）
+                        try:
+                            salary = item.get('salary').split('-')
+                            lagou_data['min_salary'] = salary[0]
+                            lagou_data['max_salary'] = salary[1]
+                        except IndexError:
+                            salary = item.get('salary').split('以上')
+                            lagou_data['min_salary'] = salary
+                            lagou_data['max_salary'] = '不限'
+
+                        # 工作地址
+                        try:
+                            lagou_data['location'] = item['city'] + item['district']
+                        except TypeError:
+                            lagou_data['location'] = item['city']
+                        # 发布时间
+                        lagou_data['publish_date'] = int(
+                            time_to_timestamp(time_str=item['createTime'])
+                        )
+                        # 职位类型
+                        lagou_data['work_type'] = item['jobNature']
+                        # 工作年限
+                        lagou_data['work_experience'] = item['workYear']
+                        # 教育水平
+                        lagou_data['limit_degree'] = item['education']
+                        # 招聘人数
+                        lagou_data['people_count'] = 0
+                        # 职位名称
+                        lagou_data['work_name'] = item['positionName']
+                        # 工作职责
+                        lagou_data['work_duty'] = ""
+                        # 工作需求
+                        lagou_data['work_need'] = ""
+                        # 公司名称
+                        lagou_data['business_name'] = item['companyFullName']
+                        # 公司状态
+                        lagou_data['business_type'] = item['financeStage']
+                        # 公司人数规模
+                        lagou_data['business_count'] = item['companySize']
+                        # 公司行业类别
+                        lagou_data['business_industry'] = item['industryField']
+                        # 公司页面url
+                        company_url = 'https://www.lagou.com/gongsi/%s.html' % item['companyId']
+                        # 招聘信息页面url
+                        job_url = 'https://www.lagou.com/jobs/%s.html' % item['positionId']
+
+                        # 职位页面
+                        lagou_data['work_info_url'] = job_url
+
+                        yield scrapy.Request(
+                            url=job_url,
+                            method="GET",
+                            cookies=ALL_COOKIES,
+                            callback=self.parse_job_info,
+                            headers=HEADERS,
+                            meta={
+                                "lagou_data": lagou_data,
+                                "company_url": company_url
+                            },
+                            dont_filter=False
+                        )
+
+                        # except TypeError as err:
+                        #      logger.error(err)
+                        # 翻页
+                        url = self._url.format(self._search_name, self.page_no + 1)
+                        yield scrapy.Request(
+                            url=url,
+                            method="GET",
+                            callback=self.parse
+                        )
+                else:
+                    raise CloseSpider(reason="End of Page num!")
+
+    def parse_job_info(self, response):
+        """
+        解析职位信息
+        :param response:
+        :return:
+        """
+
+        # Item
+        lagou_data = response.meta['lagou_data']
+
+        # 企业URL
+        company_url = response.meta['company_url']
+
+        # 招聘信息
+        info = response.xpath("//dd[@class='job_bt']//p/text()").extract()
+        if len(info) != 0:
+            lagou_data['work_content'] = get_value(info)
+        else:
+            info = response.xpath("//dd[@class='job_bt']//p/span/text()").extract()
+            lagou_data['work_content'] = get_value(info)
+
+        yield scrapy.Request(url=company_url,
+                             method="GET",
+                             cookies=COMPANY_COOKIES,
+                             callback=self.parse_company_info,
+                             meta={
+                                 "lagou_data": lagou_data
+                             },
+                             dont_filter=True)
+
+    @staticmethod
+    def parse_company_info(response):
+        """
+        解析企业信息
+        :param response:
+        :return:
+        """
+
+        # Item
+        lagou_data = response.meta['lagou_data']
+
+        # 获取页面上的json, 并解析
+        business_json = json.loads(response.xpath(
+            'string(//*[@id="companyInfoData"])'
+        ).extract()[0])
+
+        # 公司地址（判断）
+        try:
+            address_list = business_json['addressList'][0]
+            business_location = address_list['province'] + address_list['city'] + address_list['district']
+        except KeyError:
+            try:
+                address_list = business_json['addressList'][1]
+                business_location = address_list['province'] + address_list['city'] + address_list['district']
+
+            except (IndexError, KeyError):
+                business_location = ""
+
+        # 公司地址
+        lagou_data['business_location'] = business_location
+
+        # 公司网站主页
+        lagou_data['business_website'] = business_json['coreInfo']['companyUrl']
+
+        # 公司介绍
+        try:
+            business_info = business_json['introduction']['companyProfile']
+            business_info = filter_html_tag(content=business_info). \
+                replace("\n", ""). \
+                replace("&nbsp;", "")
+
+        except KeyError:
+            business_info = ""
+
+        # 公司介绍信息
+        lagou_data['business_info'] = business_info
+
+        yield lagou_data
