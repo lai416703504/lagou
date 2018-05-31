@@ -1,17 +1,4 @@
-from scrapy import log
-import random
-from scrapy.contrib.downloadermiddleware.useragent import UserAgentMiddleware
-class RotateUserAgentMiddleware(UserAgentMiddleware):
-    def __init__(self, user_agent=''):
-        self.user_agent = user_agent
-    def process_request(self, request, spider):
-        ua = random.choice(self.user_agent_list)
-        if ua:
-            log.msg('Current UserAgent: '+ua, level=log.INFO)
-            request.headers.setdefault('User-Agent', ua)
-    #the default user_agent_list composes chrome,I E,firefox,Mozilla,opera,netscape
-    #for more user agent strings,you can find it in http://www.useragentstring.com/pages/useragentstring.php
-    user_agent_list = [
+agents = [
         "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.1 "
         "(KHTML, like Gecko) Chrome/22.0.1207.1 Safari/537.1",
         "Mozilla/5.0 (X11; CrOS i686 2268.111.0) AppleWebKit/536.11 "

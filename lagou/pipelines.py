@@ -20,12 +20,7 @@ class LagouPipeline(object):
         self.writer = csv.writer(self.file)
 
     def process_item(self, item, spider):
-        self.writer.writerow((item['salary'].encode('utf8', 'ignore'), item['experience'].encode('utf8', 'ignore'),
-                              item['education'].encode('utf8', 'ignore'),
-                              item['occupation_temptation'].encode('utf8', 'ignore'),
-                              item['job_fields'].encode('utf8', 'ignore'), item['stage'].encode('utf8', 'ignore'),
-                              item['scale'].encode('utf8', 'ignore'), item['company'].encode('utf8', 'ignore'),
-                              item['url'].encode('utf8', 'ignore'), item['founder'].encode('utf8', 'ignore')))
+        self.writer.writerow((item['_id'].encode('utf8', 'ignore'),item['from_website'].encode('utf8', 'ignore'),item['min_salary'].encode('utf8', 'ignore'),item['max_salary'].encode('utf8', 'ignore'),item['location'].encode('utf8', 'ignore'),item['publish_date'].encode('utf8', 'ignore'),item['work_type'].encode('utf8', 'ignore'),item['work_experience'].encode('utf8', 'ignore'),item['limit_degree'].encode('utf8', 'ignore'),item['people_count'].encode('utf8', 'ignore'),item['work_name'].encode('utf8', 'ignore'),item['work_duty'].encode('utf8', 'ignore'),item['work_need'].encode('utf8', 'ignore'),item['work_content'].encode('utf8', 'ignore'),item['work_info_url'].encode('utf8', 'ignore'),item['business_name'].encode('utf8', 'ignore'),item['business_type'].encode('utf8', 'ignore'),item['business_count'].encode('utf8', 'ignore'),item['business_website'].encode('utf8', 'ignore'),item['business_industry'].encode('utf8', 'ignore'),item['business_location'].encode('utf8', 'ignore'),item['business_info'].encode('utf8', 'ignore'),))
 
         return item
 
