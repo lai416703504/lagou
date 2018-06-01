@@ -27,7 +27,7 @@ ROBOTSTXT_OBEY = False
 # Configure a delay for requests for the same website (default: 0)
 # See https://doc.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 3
+DOWNLOAD_DELAY = 2
 # The download delay setting will honor only one of:
 #CONCURRENT_REQUESTS_PER_DOMAIN = 16
 #CONCURRENT_REQUESTS_PER_IP = 16
@@ -98,8 +98,11 @@ ITEM_PIPELINES = {
 #HTTPCACHE_IGNORE_HTTP_CODES = []
 #HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 
-LOG_FILE = 'ten.log'
-LOG_LEVEL = 'INFO'
+# LOG_FILE = 'ten.log'
+LOG_LEVEL = 'DEBUG'
 
 # RANDOM_UA_TYPE = 'random'
 PROXY_POOL_URL = 'http://0.0.0.0:5001/random'
+
+
+# DUPEFILTER_DEBUG = True

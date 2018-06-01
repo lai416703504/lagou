@@ -35,4 +35,5 @@ class LagouItem(Item):
     salary = Field()
     secondType = Field()
     workYear = Field()
+    totalCount = Field()
 
