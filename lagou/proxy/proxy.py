@@ -12,7 +12,7 @@ import requests
 class Proxies(object):
     """docstring for Proxies"""
 
-    def __init__(self, page=10):
+    def __init__(self, page=5):
         self.proxies = []
         self.verify_pro = []
         self.page = page
@@ -23,7 +23,7 @@ class Proxies(object):
             'Accept-Language': 'zh-CN,zh;q=0.8'
         }
         self.get_proxies()
-        self.get_proxies_nn()
+        # self.get_proxies_nn()
 
     def get_proxies(self):
         page = random.randint(1, 10)
@@ -83,7 +83,7 @@ class Proxies(object):
             protocol = 'https' if 'https' in proxy else 'http'
             proxies = {protocol: proxy}
             try:
-                if requests.get('https://www.lagou.com', proxies=proxies, timeout=2).status_code == 200:
+                if requests.get('http://www.lagou.com', proxies=proxies, timeout=1).status_code == 200:
                     print ('success %s' % proxy)
                     new_queue.put(proxy)
             except:

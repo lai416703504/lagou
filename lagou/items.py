@@ -34,6 +34,10 @@ class LagouItem(Item):
     positionName = Field()
     salary = Field()
     secondType = Field()
-    workYear = Field()
-    totalCount = Field()
-
+    workYear = Field()      # 工作年限
+    work_info_url = Field()
+    work_content = Field()  # 招聘信息
+    companyLocation = Field()  # 公司地址
+    companyWebsite = Field()  # 公司网站主页
+    companyInfo = Field()  # 公司介绍信息
+    companyUrl = Field()  # 公司页面
